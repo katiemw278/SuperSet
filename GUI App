@@ -1,0 +1,1081 @@
+# cmu_graphics must be imported to use the project
+
+from cmu_graphics import *
+import copy, string, itertools, random
+
+####################################################
+# CREATIVE ELEMENTS
+# Welcome Screen
+    # Game first opens to welcome screen
+    # Color-changing "Play" button that highlights when hovered over and animates when pressed, taking player to the game
+    # Color-changing "How To Play" button that highlights when hovered over and animates when pressed, taking player to help screen
+    # Three animated border decorations of shapes and colors used in the "Standard Theme"
+    # "WELCOME TO SUPERSET!" moving title that stops in center of screen
+# Help Screen
+    # Gives example of card set for Standard theme
+# Select Theme Screen
+    # Displays card examples
+    # Use button to select a theme rather than 123 or arrow keys
+    # Color-changing theme buttons that highlight when hovered over and animate when pressed, taking player to the game
+# Play Screen
+    # Different background for each theme
+    # Lives left displayed as hearts at the top left
+    # Timer in top right corner
+    # Use animated color-changing buttons for next round and new game
+# Custom Theme
+    # URLS Used:
+        # cmu://785968/29312541/earthnobackground.png
+        # cmu://785968/29311115/sunnobackground.png
+        # cmu://785968/29312531/moonnobackground.png
+        # cmu://785968/29312561/astronautnobackground.png
+        # cmu://785968/29312578/aliennobackground.png
+        # cmu://785968/29312904/7e2d7bea4ac21388c4a96e1371f375c4ce00094b_2_1024x576.jpg
+        # cmu://785968/29313222/J_Ur_u.png
+# Game Over Screen
+    # Displays elapsed time if you win, but not if you lose
+    # "New Game" button takes player back to welcome screen
+####################################################
+
+####################################################
+# onAppStart: called only once when app is launched
+####################################################
+
+def onAppStart(app):
+    app.width = 1000
+    app.height = 600
+    app.countSteps = 0
+    app.playScreenCounter = 0
+    app.highlightPlayButton = False
+    app.playButtonX0 = app.width/2-75
+    app.playButtonY0 = app.height/2+25
+    app.showPlayButtonBorder = False
+    app.welcomeX = 0
+    app.welcomeY = 250
+    app.highlightHowButton = False
+    app.howButtonX0 = app.width/2-75
+    app.howButtonY0 = app.height/2+185
+    app.showHowButtonBorder = False
+    app.showBorder = False
+    app.theme0ButtonX0 = app.width/8-90
+    app.theme0ButtonY0 = 430
+    app.theme1ButtonX0 = 3*app.width/8-90
+    app.theme1ButtonY0 = 430
+    app.theme2ButtonX0 = 5*app.width/8-90
+    app.theme2ButtonY0 = 430
+    app.theme3ButtonX0 = 7*app.width/8-90
+    app.theme3ButtonY0 = 430
+    app.showTheme0ButtonBorder = False
+    app.showTheme1ButtonBorder = False
+    app.showTheme2ButtonBorder = False
+    app.showTheme3ButtonBorder = False
+    app.highlightTheme0Button = False
+    app.highlightTheme1Button = False
+    app.highlightTheme2Button = False
+    app.highlightTheme3Button = False
+    app.nextRoundButtonX0 = 25
+    app.nextRoundButtonY0 = 460
+    app.showNextRoundButtonBorder = False
+    app.highlightNextRoundButton = False
+    app.newGameButtonX0 = 710
+    app.newGameButtonY0 = 460
+    app.showNewGameButtonBorder = False
+    app.highlightNewGameButton = False
+    app.newGameGameOverButtonX0 = app.width/2-75
+    app.newGameGameOverButtonY0 = app.height/2+100
+    app.showNewGameGameOverButtonBorder = False
+    app.highlightNewGameGameOverButton = False
+    startNewGame(app)
+
+def startNewGame(app):
+    app.stepCount = 0
+    app.themeStepCount = 0
+    app.theme = 0
+    app.themeName = 'Letters'
+    app.dimensions = [3, 3, 3]
+    app.editDimensions = [3, 3, 3]
+    app.hintCards = []
+    app.roundsLeft = 4
+    app.livesLeft = 2
+    app.noLivesLeft = False
+    app.elapsedTime = 0
+    app.invalidDimensions = False
+    app.selectedCards = []
+    app.isSet = False
+    app.notSet = False
+    app.cardIsSelected = False
+    app.allowSelect = True
+    app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+
+####################################################
+# Code used by multiple screens
+####################################################
+
+def onKeyPressHelper(app, key):
+    if   key == 'd': setActiveScreen('setDimsScreen')
+    elif key == 't': setActiveScreen('setThemeScreen')
+    elif key == '?': setActiveScreen('helpScreen')
+    elif key == 'p' or key=='enter': 
+        setActiveScreen('playScreen')
+
+def drawScreenTitle(app, screenTitle):
+    drawLabel('SuperSet!', app.width/2, 50, size=30, bold=True, font='orbitron')
+
+####################################################
+# welcomeScreen
+####################################################
+
+def welcomeScreen_redrawAll(app): 
+    drawRect(0, 0, app.width, app.height, fill='black')
+    # Borders
+    for i in range(app.width//20):
+        if app.showBorder==True:
+            starBorder = 'red'
+            ovalBorder = 'green'
+            squareBorder = 'blue'
+        else:
+            starBorder = 'black'
+            ovalBorder = 'black'
+            squareBorder = 'black'
+        drawStar(0+40*i, 75, 25, 5, fill='red', border=starBorder)
+        drawOval(0+40*i, 125, 40, 25, align='center', fill='green', border=ovalBorder)
+        drawRect(0+40*i, 175, 30, 30, align='center', rotateAngle=45, fill='blue', border=squareBorder)
+    # Welcome title
+    drawLabel('WELCOME TO SUPERSET!', app.welcomeX, app.welcomeY, align='right-top', font='orbitron', bold=True, fill='white', size=40)
+    # Play button
+    if app.highlightPlayButton==True:
+        playButtonFill = 'gray'
+    else:
+        playButtonFill = 'white'
+    if app.showPlayButtonBorder==False:
+        drawRect(app.playButtonX0, app.playButtonY0, 150, 50, fill=playButtonFill)
+    else: 
+        drawRect(app.playButtonX0, app.playButtonY0, 150, 50, fill=playButtonFill, border='black', borderWidth=5)
+    drawLabel('PLAY', app.width/2, 350, align='center', size=30, font='orbitron', bold=True, fill='black')
+    # How To Play message
+    drawLabel('New to the game? Forgot the rules?', app.width/2, app.height/2+160, fill='white', size=16, font='monospace', bold=True)
+    # How To Play button
+    if app.highlightHowButton==True:
+        howButtonFill = 'gray'
+    else:
+        howButtonFill = 'white'
+    if app.showHowButtonBorder==False:
+        drawRect(app.howButtonX0, app.howButtonY0, 150, 30, fill=howButtonFill)
+    else:
+        drawRect(app.howButtonX0, app.howButtonY0, 150, 30, fill=howButtonFill, border='black', borderWidth=5)
+    drawLabel('How To Play', app.width/2, app.height/2+200, align='center', fill='black', size=18, font='orbitron', bold=True)
+
+def pointInRectPlay(app, x, y):
+    x0 = app.playButtonX0
+    y0 = app.playButtonY0
+    x1 = app.playButtonX0+150
+    y1 = app.playButtonY0+50
+    return (x0<=x<=x1) and (y0<=y<=y1)
+    
+def pointInRectHow(app, x, y):
+    x0 = app.howButtonX0
+    y0 = app.howButtonY0
+    x1 = app.howButtonX0+150
+    y1 = app.howButtonY0+50
+    return (x0<=x<=x1) and (y0<=y<=y1)
+
+def welcomeScreen_onMouseMove(app, mouseX, mouseY):
+    if pointInRectPlay(app, mouseX, mouseY):
+        app.highlightPlayButton = True
+    else:
+        app.highlightPlayButton = False
+    if pointInRectHow(app, mouseX, mouseY):
+        app.highlightHowButton = True
+    else:
+        app.highlightHowButton = False
+
+def welcomeScreen_onMousePress(app, mouseX, mouseY):
+    if pointInRectPlay(app, mouseX, mouseY):
+        app.showPlayButtonBorder = True
+    else:
+        app.showPlayButtonBorder = False
+    if pointInRectHow(app, mouseX, mouseY):
+        app.showHowButtonBorder = True
+    else:
+        app.showHowButtonBorder = False
+
+def welcomeScreen_onMouseRelease(app, mouseX, mouseY):
+    if app.showPlayButtonBorder==True:
+        app.showPlayButtonBorder = False
+        setActiveScreen('playScreen')
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+    if app.showHowButtonBorder==True:
+        app.showHowButtonBorder = False
+        setActiveScreen('helpScreen')
+
+def welcomeScreen_onStep(app):
+    app.countSteps+=1
+    if app.welcomeX<800:
+        app.welcomeX+=8
+    if app.countSteps%30==0:
+        app.showBorder = not app.showBorder
+
+####################################################
+# helpScreen
+####################################################
+
+def helpScreen_redrawAll(app):
+    drawScreenTitle(app, 'Help Screen')
+    drawLabel('HOW TO PLAY', app.width/2, 100, font='orbitron', size=20, bold=True)
+    drawLabel('Press p to start playing!', app.width/2, 120, font='monospace', size=14)
+    instructions = '''\
+    1. Given a board of eight cards, you must select a set where the characteristic 
+       of each dimension for each card is either all the same or all different.
+    2. The number of cards in a set is determined by the minimum chosen dimension.
+    3. When playing, look at the white box on the left for help or press the ? key 
+       to return to this page.
+    '''
+    count = 0
+    for line in instructions.splitlines():
+        count+=1
+        drawLabel(line, 30, 125+25*count, size=18, align='left', font='monospace')
+    drawRect(app.width/3, 370, 120, 180, align='center', border='black', fill=None, borderWidth=5)
+    drawOval(app.width/3, 370, 75, 40, fill='blue')
+    drawRect(app.width/2, 370, 120, 180, align='center', border='black', fill=None, borderWidth=5)
+    drawOval(app.width/2, 345, 75, 40, fill='blue')
+    drawOval(app.width/2, 395, 75, 40, fill='blue')
+    drawRect(2*app.width/3, 370, 120, 180, align='center', border='black', fill=None, borderWidth=5)
+    drawOval(2*app.width/3, 320, 75, 40, fill='blue')
+    drawOval(2*app.width/3, 370, 75, 40, fill='blue')
+    drawOval(2*app.width/3, 420, 75, 40, fill='blue')
+    drawLabel('This is a set!', app.width/2, 490, size=18, font='monospace')
+    drawLabel('There are 3 dimensions: color, shape, and number.', app.width/2, 515, size=18, font='monospace')
+    drawLabel('Color and shape are the same across all cards. Number is different across all cards.', app.width/2, 540, size=18, font='monospace')
+
+def helpScreen_onKeyPress(app, key):
+    onKeyPressHelper(app, key)
+
+####################################################
+# setDimsScreen
+####################################################
+
+def setDimsScreen_onScreenActivate(app):
+    print('''
+
+********************************************
+You just activated the setDims Screen!
+You can put code here (in setDimsScreen_onScreenActivate)
+to do something each time the user activates this screen.
+********************************************
+''')
+
+def setDimsScreen_redrawAll(app):
+    drawScreenTitle(app, 'Set Dimensions Screen')
+    drawLabel(f'Current Dimensions: {app.dimensions}', app.width/2, 100, align='center', size=20, font='orbitron')
+    drawLabel('Use digits 3-5 and backspace to type new dimensions', app.width/2, 200, align='center', size=16, font='monospace')
+    drawLabel('Press enter to set the new dimensions', app.width/2, 220, align='center', size=16, font='monospace')
+    drawLabel(f'New Dimensions: {app.editDimensions}', app.width/2, 260, align='center', size=16, font='monospace')
+    if app.invalidDimensions==True:
+        if len(app.editDimensions)<2:
+            drawLabel('Must have at least 2 features!', 500, 350, fill='red', size=16, font='monospace')
+        elif len(app.editDimensions)>5:
+            drawLabel('Must have 5 or fewer features!', 500, 350, fill='red', size=16, font='monospace')
+        elif app.editDimensions.count(5)>1:
+            drawLabel('Dims can have at most one 5 (or app is too slow)', 500, 350, fill='red', size=16, font='monospace')
+        elif sum(app.editDimensions)>15:
+            drawLabel('Dims must sum to 15 or less (or app is too slow)', 500, 350, fill='red', size=16, font='monospace')
+    drawLabel('Press ENTER to set new dimensions', app.width/2, 300, size=16, font='monospace')
+    drawLabel('Press p to return to gameplay', app.width/2, 400, size=20, font='orbitron')
+
+def setDimsScreen_onKeyPress(app, key):
+    app.invalidDimensions = False
+    if key in '345':
+        app.editDimensions.append(int(key))
+    if len(app.editDimensions)>0:
+        if key=='backspace':
+            app.editDimensions.pop()
+    if key=='enter':
+        if sum(app.editDimensions)>15 or app.editDimensions.count(5)>1 or len(app.editDimensions)>5 or len(app.editDimensions)<2:
+            app.invalidDimensions = True
+            return
+        else:
+            app.invalidDimensions = False
+            app.dimensions = app.editDimensions
+            setActiveScreen('playScreen')
+    onKeyPressHelper(app, key)
+
+####################################################
+# setThemeScreen
+####################################################
+
+def setThemeScreen_redrawAll(app):
+    drawScreenTitle(app, 'Set Theme Screen')
+    drawLabel(f'Current Theme: {app.themeName}', app.width/2, 100, size=20, font='orbitron')
+    drawLabel('Choose your theme', app.width/2, 130, size=16, font='orbitron')
+    
+    # Letter Card example
+    drawRect(app.width/8, app.height/2, 180, 250, align='center', fill='white', border='black', borderWidth=5)
+    drawLabel('ABC', app.width/8, app.height/2, bold=True, size=40)
+    # Theme 0 button
+    if app.highlightTheme0Button==True:
+        theme0ButtonFill = 'gray'
+    else:
+        theme0ButtonFill = 'black'
+    if app.showTheme0ButtonBorder==False:
+        drawRect(app.width/8, 460, 180, 60, align='center', fill=theme0ButtonFill)
+    else:
+        drawRect(app.width/8, 460, 180, 60, align='center', fill=theme0ButtonFill, border='white')
+    drawLabel('Theme 0:', app.width/8, 450, size=20, font='orbitron', fill='white', bold=True)
+    drawLabel('Letters', app.width/8, 470, size=20, font='orbitron', fill='white', bold=True)
+    
+    # Standard Card example
+    drawRect(3*app.width/8, app.height/2, 180, 250, align='center', fill='white', border='black', borderWidth=5)
+    for i in range(3):
+        drawOval(3*app.width/8, (app.height/2-75)+75*i, 100, 60, fill='green')
+    # Theme 1 button
+    if app.highlightTheme1Button==True:
+        theme1ButtonFill = 'gray'
+    else:
+        theme1ButtonFill = 'black'
+    if app.showTheme1ButtonBorder==False:
+        drawRect(3*app.width/8, 460, 180, 60, align='center', fill=theme1ButtonFill)
+    else:
+        drawRect(3*app.width/8, 460, 180, 60, align='center', fill=theme1ButtonFill, border='white')
+    drawLabel('Theme 1:', 3*app.width/8, 450, size=20, font='orbitron', fill='white', bold=True)
+    drawLabel('Standard', 3*app.width/8, 470, size=20, font='orbitron', fill='white', bold=True)
+    
+    # Special Card example
+    drawRect(5*app.width/8, app.height/2, 180, 250, align='center', fill='white', border='black', borderWidth=5)
+    drawRegularPolygon(5*app.width/8, app.height/2, 60, 6, fill='cyan', border='black', rotateAngle=app.themeStepCount*-5)
+    # Theme 2 button
+    if app.highlightTheme2Button==True:
+        theme2ButtonFill = 'gray'
+    else:
+        theme2ButtonFill = 'black'
+    if app.showTheme2ButtonBorder==False:
+        drawRect(5*app.width/8, 460, 180, 60, align='center', fill=theme2ButtonFill)
+    else:
+        drawRect(5*app.width/8, 460, 180, 60, align='center', fill=theme2ButtonFill, border='white')
+    drawLabel('Theme 2:', 5*app.width/8, 450, size=20, font='orbitron', fill='white', bold=True)
+    drawLabel('Special', 5*app.width/8, 470, size=20, font='orbitron', fill='white', bold=True)
+    
+    # Space Card example
+    drawRect(7*app.width/8, app.height/2, 180, 250, align='center', fill='white', border='black', borderWidth=5)
+    url = 'cmu://785968/29312541/earthnobackground.png'
+    drawImage(url, 7*app.width/8, app.height/2, width=200, height=200, align='center', rotateAngle=app.themeStepCount*2)
+    url2 = 'cmu://785968/29312561/astronautnobackground.png'
+    drawImage(url2, 7*app.width/8, app.height/2, width=100, height=100, align='center')
+    
+    # Theme 3 button
+    if app.highlightTheme3Button==True:
+        theme3ButtonFill = 'gray'
+    else:
+        theme3ButtonFill = 'black'
+    if app.showTheme3ButtonBorder==False:
+        drawRect(7*app.width/8, 460, 180, 60, align='center', fill=theme3ButtonFill)
+    else:
+        drawRect(7*app.width/8, 460, 180, 60, align='center', fill=theme3ButtonFill, border='white')
+    drawLabel('Theme 3:', 7*app.width/8, 450, size=20, font='orbitron', fill='white', bold=True)
+    drawLabel('Space', 7*app.width/8, 470, size=20, font='orbitron', fill='white', bold=True)
+
+def setThemeScreen_onKeyPress(app, key):
+    onKeyPressHelper(app, key)
+
+def getThemeName(app, n):
+    if n==0:
+        app.themeName = 'Letters'
+    elif n==1:
+        app.themeName = 'Standard'
+    elif n==2:
+        app.themeName = 'Special'
+    elif n==3:
+        app.themeName = 'Space'
+
+def pointInRectTheme0(app, x, y):
+    x0 = app.theme0ButtonX0
+    y0 = app.theme0ButtonY0
+    x1 = app.theme0ButtonX0+180
+    y1 = app.theme0ButtonY0+60
+    return (x0<=x<=x1) and (y0<=y<=y1)
+    
+def pointInRectTheme1(app, x, y):
+    x0 = app.theme1ButtonX0
+    y0 = app.theme1ButtonY0
+    x1 = app.theme1ButtonX0+180
+    y1 = app.theme1ButtonY0+60
+    return (x0<=x<=x1) and (y0<=y<=y1)
+
+def pointInRectTheme2(app, x, y):
+    x0 = app.theme2ButtonX0
+    y0 = app.theme2ButtonY0
+    x1 = app.theme2ButtonX0+180
+    y1 = app.theme2ButtonY0+60
+    return (x0<=x<=x1) and (y0<=y<=y1)
+
+def pointInRectTheme3(app, x, y):
+    x0 = app.theme3ButtonX0
+    y0 = app.theme3ButtonY0
+    x1 = app.theme3ButtonX0+180
+    y1 = app.theme3ButtonY0+60
+    return (x0<=x<=x1) and (y0<=y<=y1)
+
+def setThemeScreen_onMouseMove(app, mouseX, mouseY):
+    if pointInRectTheme0(app, mouseX, mouseY):
+        app.highlightTheme0Button = True
+    else:
+        app.highlightTheme0Button = False
+    if pointInRectTheme1(app, mouseX, mouseY):
+        app.highlightTheme1Button = True
+    else:
+        app.highlightTheme1Button = False
+    if pointInRectTheme2(app, mouseX, mouseY):
+        app.highlightTheme2Button = True
+    else:
+        app.highlightTheme2Button = False
+    if pointInRectTheme3(app, mouseX, mouseY):
+        app.highlightTheme3Button = True
+    else:
+        app.highlightTheme3Button = False
+
+def setThemeScreen_onMousePress(app, mouseX, mouseY):
+    if pointInRectTheme0(app, mouseX, mouseY):
+        app.showTheme0ButtonBorder = True
+    else:
+        app.showTheme0ButtonBorder = False
+    if pointInRectTheme1(app, mouseX, mouseY):
+        app.showTheme1ButtonBorder = True
+    else:
+        app.showTheme1ButtonBorder = False
+    if pointInRectTheme2(app, mouseX, mouseY):
+        app.showTheme2ButtonBorder = True
+    else:
+        app.showTheme2ButtonBorder = False
+    if pointInRectTheme3(app, mouseX, mouseY):
+        app.showTheme3ButtonBorder = True
+    else:
+        app.showTheme3ButtonBorder = False
+
+def setThemeScreen_onMouseRelease(app, mouseX, mouseY):
+    if app.showTheme0ButtonBorder==True:
+        app.showTheme0ButtonBorder = False
+        app.theme = 0
+        app.selectedCards = []
+        app.isSet = False
+        app.notSet = False
+        setActiveScreen('playScreen')
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+    elif app.showTheme1ButtonBorder==True:
+        app.showTheme1ButtonBorder = False
+        app.theme = 1
+        app.selectedCards = []
+        app.isSet = False
+        app.notSet = False
+        setActiveScreen('playScreen')
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+    elif app.showTheme2ButtonBorder==True:
+        app.showTheme2ButtonBorder = False
+        app.theme = 2
+        app.selectedCards = []
+        app.isSet = False
+        app.notSet = False
+        setActiveScreen('playScreen')
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+    elif app.showTheme3ButtonBorder==True:
+        app.showTheme3ButtonBorder = False
+        app.theme = 3
+        app.selectedCards = []
+        app.isSet = False
+        app.notSet = False
+        setActiveScreen('playScreen')
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+
+def setThemeScreen_onStep(app):
+    app.themeStepCount+=1
+
+####################################################
+# playScreen
+####################################################
+
+def playScreen_redrawAll(app):
+    if app.theme==0:
+        drawRect(0, 0, app.width, app.height, fill=gradient('pink', 'violet', 'lightBlue', start='center'))
+    elif app.theme==1:
+        drawRect(0, 0, app.width, app.height, fill=gradient('cyan', 'lightGreen', 'pink', start='left-top'))
+    elif app.theme==2:
+        drawRect(0, 0, app.width, app.height, fill=gradient('lightBlue', 'pink', 'orange', start='center'))
+    elif app.theme==3:
+        url = 'cmu://785968/29312904/7e2d7bea4ac21388c4a96e1371f375c4ce00094b_2_1024x576.jpg'
+        drawImage(url, 0, 0, width=app.width, height=app.height)
+        drawRect(app.width/2, 75, 300, 75, align='center', fill='white')
+        drawRect(860, 50, 150, 50, align='left', fill='white')
+        drawRect(0, 125, 200, 50, align='left', fill='white')
+    drawLabel('SuperSet!', app.width/2, 75, size=50, bold=True, font='orbitron')
+    drawLabel(f'Timer: {app.elapsedTime}', 875, 50, size=20, align='left', font='orbitron')
+    for i in range(app.livesLeft):
+        drawImage('cmu://785968/29313222/J_Ur_u.png', 50+75*i, 50, width=60, height=50, align='center')
+    drawLabel(f'Rounds Left: {app.roundsLeft}', 25, 125, size=20, font='orbitron', align='left')
+    # Drawing cards
+    for i in range(len(app.board)):
+        if app.theme==3:
+            color = 'white'
+        else:
+            color = 'black'
+        card = app.board[i]
+        # Draw card borders
+        left, top, width, height = getCardBounds(app, i)
+        if card in app.selectedCards:
+            if app.isSet==False and app.notSet==False:
+                drawRect(left, top, width, height, fill=None, border='gold', dashes=True, borderWidth=5)
+            elif app.isSet==True:
+                drawRect(left, top, width, height, fill=None, border='green', dashes=True, borderWidth=5)
+            elif app.notSet==True:
+                drawRect(left, top, width, height, fill=None, border='red', dashes=True, borderWidth=5)
+        else:
+            drawRect(left, top, width, height, fill=None, border=color, borderWidth=5)
+        # Draw contents of each card depending on selected theme
+        if app.theme==0:
+            drawCardInLettersTheme(app, card, left, top, width, height)
+        elif app.theme==1:
+            drawCardInStandardTheme(app, card, left, top, width, height)
+        elif app.theme==2:
+            drawCardInSpecialTheme(app, card, left, top, width, height)
+        elif app.theme==3:
+            drawCardInSpaceTheme(app, card, left, top, width, height)
+        # Check if selected cards are a set
+        if app.isSet==True and app.notSet==False:
+            drawLabel('Correct!', 500, 130, fill='green', size=16)
+            drawLabel('Continue to the next round', 500, 150, fill='green', size=16)
+        elif app.isSet==False and app.notSet==True:
+            drawLabel('Those cards do not form a set!', 500, 130, fill='red', size=16)
+            drawLabel('Continue to the next round', 500, 150, fill='red', size=16)
+    # Side instructions
+    drawRect(25, 170, 150, 275, fill='white', border='black')
+    drawLabel('Press t', 100, 195, size=16, font='orbitron', align='center', bold=True)
+    drawLabel('to change theme', 100, 215, size=10, font='orbitron', align='center')
+    drawLabel('Press d', 100, 245, size=16, font='orbitron', align='center', bold=True)
+    drawLabel('to change dimensions', 100, 265, size=10, font='orbitron', align='center')
+    drawLabel('Press ?', 100, 295, size=16, font='orbitron', align='center', bold=True)
+    drawLabel('for the help screen', 100, 315, size=10, font='orbitron', align='center')
+    drawLabel('Press h', 100, 345, size=16, font='orbitron', align='center', bold=True)
+    drawLabel('for a hint (+15 seconds)', 100, 365, size=10, font='orbitron', align='center')
+    drawLabel(f'Select {min(app.dimensions)} cards', 100, 415, size=16, font='orbitron')
+    # Next Round button
+    if app.highlightNextRoundButton==True:
+        nextRoundButtonFill = 'green'
+    else:
+        nextRoundButtonFill = 'lightGreen'
+    if app.showNextRoundButtonBorder==False:
+        drawRect(25, 460, 150, 50, fill=nextRoundButtonFill, border='black')
+    else:
+        drawRect(25, 460, 150, 50, fill=nextRoundButtonFill, border='black', borderWidth=5)
+    drawLabel('Next Round', 100, 485, size=16, font='orbitron', align='center', bold=True)
+    # New Game button
+    if app.highlightNewGameButton==True:
+        newGameButtonFill = 'white'
+        text = 'black'
+    else:
+        newGameButtonFill = 'black'
+        text = 'white'
+    if app.showNewGameButtonBorder==False:
+        drawRect(710, 460, 150, 50, fill=newGameButtonFill, border='black')
+    else:
+        drawRect(710, 460, 150, 50, fill=newGameButtonFill, border='black', borderWidth=5)
+    drawLabel('New Game', 710+75, 460+25, size=16, font='orbitron', align='center', bold=True, fill=text)
+    # Game Over instances
+    if app.noLivesLeft==True:
+        setActiveScreen('gameOverScreen')
+    elif app.roundsLeft==0:
+        setActiveScreen('gameOverScreen')
+
+def pointInNextRoundButton(app, x, y):
+    x0 = app.nextRoundButtonX0
+    y0 = app.nextRoundButtonY0
+    x1 = app.nextRoundButtonX0+150
+    y1 = app.nextRoundButtonY0+50
+    return (x0<=x<=x1) and (y0<=y<=y1)
+
+def pointInNewGameButton(app, x, y):
+    x0 = app.newGameButtonX0
+    y0 = app.newGameButtonY0
+    x1 = app.newGameButtonX0+150
+    y1 = app.newGameButtonY0+50
+    return (x0<=x<=x1) and (y0<=y<=y1)
+
+def getCardBounds(app, i):
+    left = 200 + 150*(i%5)
+    if i<5: top = 170
+    else: top = 395
+    width = 120
+    height = 180
+    return left, top, width, height
+
+def pointInCard(app, x, y, left, top, width, height):
+    x0 = left
+    y0 = top
+    x1 = left+width
+    y1 = top+height
+    return (x0<=x<=x1) and (y0<=y<=y1)
+
+def playScreen_onMousePress(app, mouseX, mouseY):
+    if app.livesLeft==0:
+        app.noLivesLeft = True
+    if pointInNextRoundButton(app, mouseX, mouseY):
+        app.showNextRoundButtonBorder = True
+    else:
+        app.showNextRoundButtonBorder = False
+    if pointInNewGameButton(app, mouseX, mouseY):
+        app.showNewGameButtonBorder = True
+    else:
+        app.showNewGameButtonBorder = False
+    for i in range(len(app.board)):
+        left, top, width, height = getCardBounds(app, i)
+        if pointInCard(app, mouseX, mouseY, left, top, width, height) and app.allowSelect==True:
+            if app.board[i] in app.selectedCards:
+                app.selectedCards.remove(app.board[i])
+            else:
+                app.selectedCards.append(app.board[i])
+    if len(app.selectedCards)==min(app.dimensions) and app.allowSelect==True:
+        if isSet(app.selectedCards):
+            app.isSet = True
+            app.notSet = False
+            app.allowSelect = False
+        else:
+            app.isSet = False
+            app.notSet = True
+            app.allowSelect = False
+            app.livesLeft-=1
+
+def playScreen_onMouseMove(app, mouseX, mouseY):
+    if pointInNextRoundButton(app, mouseX, mouseY):
+        app.highlightNextRoundButton = True
+    else:
+        app.highlightNextRoundButton = False
+    if pointInNewGameButton(app, mouseX, mouseY):
+        app.highlightNewGameButton = True
+    else:
+        app.highlightNewGameButton = False
+
+def playScreen_onMouseRelease(app, mouseX, mouseY):
+    if app.showNextRoundButtonBorder==True:
+        app.showNextRoundButtonBorder = False
+        if app.isSet==True:
+            app.roundsLeft-=1
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+        app.selectedCards = []
+        app.isSet = False
+        app.notSet = False
+        app.allowSelect = True
+    if app.showNewGameButtonBorder==True:
+        app.showNewGameButtonBorder = False
+        app.stepCount = 0
+        app.themeStepCount = 0
+        app.dimensions = [3, 3, 3]
+        app.editDimensions = [3, 3, 3]
+        app.hintCards = []
+        app.roundsLeft = 4
+        app.livesLeft = 2
+        app.noLivesLeft = False
+        app.elapsedTime = 0
+        app.invalidDimensions = False
+        app.selectedCards = []
+        app.isSet = False
+        app.notSet = False
+        app.cardIsSelected = False
+        app.allowSelect = True
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+
+def drawCardInLettersTheme(app, card, left, top, width, height):
+    drawLabel(card, left+width/2, top+height/2, size=28, bold=True)
+
+def drawCardInStandardTheme(app, card, left, top, width, height):
+    themeMaxDimensions = [3, 3, 3, 3]
+    # Check if chosen dimensions are within bounds of this theme
+    if dimsTooLargeForTheme(app.dimensions, themeMaxDimensions):
+        drawCardInLettersTheme(app, card, left, top, width, height)
+        return
+    # Get characteristics of each card
+    color = getStandardColor(card[0])
+    shape = getStandardShape(card[1])
+    if len(card)>2:
+        number = getNumber(card[2])
+    else: 
+        number = 1
+    if len(card)>3:
+        opacity = getOpacity(card[3])
+    else:
+        opacity = 100
+    # Draw characteristics of each card
+    for i in range(1, number+1): # Loops so multiple shapes can be drawn for each card
+        if shape=='oval':
+            cx = left+width/2
+            cy = top+(i*height)/(number+1)
+            drawOval(cx, cy, 75, 40, fill=color, opacity=opacity)
+            if opacity!=100:
+                drawOval(cx, cy, 75, 40, fill=None, border=color, borderWidth=3)
+        elif shape=='diamond':
+            topPointX, topPointY = left+width/2, top+(i*height)/(number+2)+5
+            rightPointX, rightPointY = left+width/2+30, top+(i*height)/(number+2)+20
+            bottomPointX, bottomPointY = left+width/2, top+(i*height)/(number+2)+35
+            leftPointX, leftPointY = left+width/2-30, top+(i*height)/(number+2)+20
+            drawPolygon(topPointX, topPointY, rightPointX, rightPointY, bottomPointX, 
+            bottomPointY, leftPointX, leftPointY, fill=color, opacity=opacity)
+            if opacity!=100:
+                drawPolygon(topPointX, topPointY, rightPointX, rightPointY, bottomPointX, 
+                bottomPointY, leftPointX, leftPointY, fill=None, border=color, borderWidth=3)
+        elif shape=='star':
+            cx = left+width/2
+            cy = top+(i*height)/(number+1)
+            drawStar(cx, cy, 25, 5, fill=color, opacity=opacity)
+            if opacity!=100:
+                drawStar(cx, cy, 25, 5, fill=None, border=color, borderWidth=3)
+
+def drawCardInSpecialTheme(app, card, left, top, width, height):
+    themeMaxDimensions = [4, 4, 4, 4]
+    # Check if chosen dimensions are within bounds of this theme
+    if dimsTooLargeForTheme(app.dimensions, themeMaxDimensions):
+        drawCardInLettersTheme(app, card, left, top, width, height)
+        return
+    color = getSpecialColor(card[0])
+    shape = getSpecialShape(card[1])
+    if len(card)>2:
+        speed = getAngleChange(card[2])
+    else:
+        speed = 2
+    if len(card)>3:
+        border, dotted = getBorder(card[3])
+    else:
+        border, dotted = 1, False
+    if shape=='triangle':
+        drawRegularPolygon(left+width/2, top+height/2, 40, 3, fill=color, border='black', borderWidth=border, dashes=dotted, rotateAngle = app.stepCount*speed)
+    elif shape=='square':
+        drawRect(left+width/2, top+height/2, 60, 60, fill=color, align='center', border='black', borderWidth=border, dashes=dotted, rotateAngle = app.stepCount*speed)
+    elif shape=='pentagon':
+        drawRegularPolygon(left+width/2, top+height/2, 40, 5, fill=color, border='black', borderWidth=border, dashes=dotted, rotateAngle = app.stepCount*speed)
+    elif shape=='hexagon':
+        drawRegularPolygon(left+width/2, top+height/2, 40, 6, fill=color, border='black', borderWidth=border, dashes=dotted, rotateAngle = app.stepCount*speed)
+
+def drawCardInSpaceTheme(app, card, left, top, width, height):
+    themeMaxDimensions = [3, 3, 3]
+    if dimsTooLargeForTheme(app.dimensions, themeMaxDimensions):
+        drawCardInLettersTheme(app, card, left, top, width, height)
+        return
+    figure = getFigure(card[0])
+    speed = getAngleChange(card[1])
+    if len(card)>2:
+        astronaut, alien = getCharacter(card[2])
+    else:
+        astronaut, alien = False, False
+    if figure=='earth':
+        url1 = 'cmu://785968/29312541/earthnobackground.png'
+        drawImage(url1, left+width/2, top+height/2, width=150, height=150, align='center', rotateAngle=app.stepCount*speed)
+        if astronaut==True:
+            url2 = 'cmu://785968/29312561/astronautnobackground.png'
+            drawImage(url2, left+width/2, top+height/2, width=75, height=75, align='center')
+        elif alien==True:
+            url3 = 'cmu://785968/29312578/aliennobackground.png'
+            drawImage(url3, left+width/2, top+height/2, width=75, height=75, align='center')
+    elif figure=='moon':
+        url1 = 'cmu://785968/29312531/moonnobackground.png'
+        drawImage(url1, left+width/2, top+height/2, width=110, height=110, align='center', rotateAngle=app.stepCount*speed)
+        if astronaut==True:
+            url2 = 'cmu://785968/29312561/astronautnobackground.png'
+            drawImage(url2, left+width/2, top+height/2, width=75, height=75, align='center')
+        elif alien==True:
+            url3 = 'cmu://785968/29312578/aliennobackground.png'
+            drawImage(url3, left+width/2, top+height/2, width=75, height=75, align='center')
+    elif figure=='sun':
+        url1 = 'cmu://785968/29311115/sunnobackground.png'
+        drawImage(url1, left+width/2, top+height/2, width=150, height=150, align='center', rotateAngle=app.stepCount*speed)
+        if astronaut==True:
+            url2 = 'cmu://785968/29312561/astronautnobackground.png'
+            drawImage(url2, left+width/2, top+height/2, width=75, height=75, align='center')
+        elif alien==True:
+            url3 = 'cmu://785968/29312578/aliennobackground.png'
+            drawImage(url3, left+width/2, top+height/2, width=75, height=75, align='center')
+
+def dimsTooLargeForTheme(dims, maxDims):
+    if len(dims)>len(maxDims):
+        return True
+    for i in range(len(dims)):
+        if dims[i]>maxDims[i]:
+            return True
+    return False
+
+def getStandardColor(letter):
+    if letter=='A': color = 'red'
+    elif letter=='B': color = 'blue'
+    elif letter=='C': color = 'green'
+    return color
+
+def getStandardShape(letter):
+    if letter=='A': shape = 'oval'
+    elif letter=='B': shape = 'diamond'
+    elif letter=='C': shape = 'star'
+    return shape
+
+def getNumber(letter):
+    if letter=='A': number = 1
+    elif letter=='B': number = 2
+    elif letter=='C': number = 3
+    return number
+
+def getOpacity(letter):
+    if letter=='A': opacity = 0
+    elif letter=='B': opacity = 30
+    elif letter=='C': opacity = 100
+    return opacity
+
+def getSpecialColor(letter):
+    if letter=='A': color = 'orange'
+    elif letter=='B': color = 'lightPink'
+    elif letter=='C': color = 'cyan'
+    elif letter=='D': color = 'purple'
+    return color
+
+def getSpecialShape(letter):
+    if letter=='A': shape = 'triangle'
+    elif letter=='B': shape = 'square'
+    elif letter=='C': shape = 'pentagon'
+    elif letter=='D': shape = 'hexagon'
+    return shape
+
+def getAngleChange(letter):
+    if letter=='A': speed = 2
+    elif letter=='B': speed = 8
+    elif letter=='C': speed = -2
+    elif letter=='D': speed = -8
+    return speed
+
+def getBorder(letter):
+    if letter=='A': 
+        border = 0
+        dotted = False
+    elif letter=='B': 
+        border = 2
+        dotted = False
+    elif letter=='C': 
+        border = 4
+        dotted = False
+    elif letter=='D': 
+        border = 2
+        dotted = True
+    return border, dotted
+
+def getFigure(letter):
+    if letter=='A': figure = 'earth'
+    elif letter=='B': figure = 'moon'
+    elif letter=='C': figure = 'sun'
+    return figure
+
+def getCharacter(letter):
+    if letter=='A': astronaut, alien = False, False
+    elif letter=='B': astronaut, alien = True, False
+    elif letter=='C': astronaut, alien = False, True
+    return astronaut, alien
+
+def playScreen_onKeyPress(app, key):
+    if key=='h' and app.isSet==False and app.notSet==False:
+        app.elapsedTime+=15
+        for card in app.selectedCards:
+            if card not in app.hintCards:
+                app.selectedCards.remove(card)
+                return
+        for card in app.hintCards:
+            if card not in app.selectedCards:
+                app.selectedCards.append(card)
+                if len(app.selectedCards)==min(app.dimensions):
+                    app.isSet = True
+                return
+    onKeyPressHelper(app, key)
+
+def playScreen_onStep(app):
+    app.stepCount+=1
+    app.playScreenCounter+=1
+    if app.playScreenCounter%30==0:
+        app.elapsedTime+=1
+
+####################################################
+# gameOverScreen
+####################################################
+
+def gameOverScreen_redrawAll(app):
+    drawRect(0, 0, app.width, app.height, fill='black')
+    if app.noLivesLeft==True:
+        drawLabel('Game Over! You ran out of lives!', app.width/2, app.height/2, fill='red', size=50, bold=True, font='orbitron')
+    else:
+        drawLabel('Game Over! You finished in', app.width/2, app.height/2-45, fill='lightGreen', size=50, bold=True, font='orbitron')
+        drawLabel(f'{app.elapsedTime} seconds!', app.width/2, app.height/2+45, fill='lightGreen', size=50, bold=True, font='orbitron')
+    
+    if app.highlightNewGameGameOverButton==True:
+        newGameButtonFill = 'gray'
+        text = 'black'
+    else:
+        newGameButtonFill = 'white'
+        text = 'black'
+    if app.showNewGameGameOverButtonBorder==False:
+        drawRect(app.newGameGameOverButtonX0, app.newGameGameOverButtonY0, 150, 50, fill=newGameButtonFill, border='black')
+    else:
+        drawRect(app.newGameGameOverButtonX0, app.newGameGameOverButtonY0, 150, 50, fill=newGameButtonFill, border='black', borderWidth=5)
+    drawLabel('New Game', app.width/2, app.height/2+125, size=20, font='orbitron')
+
+def pointInNewGameGameOverButton(app, x, y):
+    x0 = app.newGameGameOverButtonX0
+    y0 = app.newGameGameOverButtonY0
+    x1 = app.newGameGameOverButtonX0+150
+    y1 = app.newGameGameOverButtonY0+50
+    return (x0<=x<=x1) and (y0<=y<=y1)
+    
+def gameOverScreen_onMouseMove(app, mouseX, mouseY):
+    if pointInNewGameGameOverButton(app, mouseX, mouseY):
+        app.highlightNewGameGameOverButton = True
+    else:
+        app.highlightNewGameGameOverButton = False
+
+def gameOverScreen_onMousePress(app, mouseX, mouseY):
+    if pointInNewGameGameOverButton(app, mouseX, mouseY):
+        app.showNewGameGameOverButtonBorder = True
+    else:
+        app.showNewGameGameOverButtonBorder = False
+
+def gameOverScreen_onMouseRelease(app, mouseX, mouseY):
+    if app.showNewGameGameOverButtonBorder==True:
+        app.showNewGameGameOverButtonBorder = False
+        setActiveScreen('welcomeScreen')
+        app.stepCount = 0
+        app.themeStepCount = 0
+        app.dimensions = [3, 3, 3]
+        app.editDimensions = [3, 3, 3]
+        app.hintCards = []
+        app.roundsLeft = 4
+        app.livesLeft = 2
+        app.noLivesLeft = False
+        app.elapsedTime = 0
+        app.invalidDimensions = False
+        app.selectedCards = []
+        app.isSet = False
+        app.notSet = False
+        app.cardIsSelected = False
+        app.allowSelect = True
+        app.board, app.hintCards = getRandomBoardWithSet(app.dimensions, 8)
+
+###############################################
+# Functions copied from console-based app
+###############################################
+
+def stringProduct(L):  
+    resultTuples = list(itertools.product(*L))
+    resultStrings = [''.join(t) for t in resultTuples]
+    return resultStrings
+
+def combinations(L, n):
+    return [list(v) for v in itertools.combinations(L, n)]
+
+###############################################
+# Functions for you to write
+###############################################
+
+def allSame(L):
+    for i in range(len(L)-1):
+        if L[i]!=L[i+1]:
+            return False
+    return True
+
+def allDiffer(L):
+    elements = []
+    for i in range(len(L)):
+        if L[i] in elements:
+            return False
+        elements.append(L[i])
+    return True
+
+def isSet(cards):
+    if len(cards)==1:
+        return True
+    sameCount = 0
+    diffCount = 0
+    numFeatures = len(cards[0])
+    for i in range(numFeatures):
+        feature = []
+        for card in range(len(cards)):
+            feature.append(cards[card][i])
+        if allSame(feature): sameCount+=1
+        elif allDiffer(feature): diffCount+=1
+        else:
+            return False
+    return True
+
+def makeSuperSetDeck(dims):
+    input = []
+    while len(input)<len(dims):
+        for i in range(len(dims)):
+            length = dims[i]
+            input.append(getLetters(length))
+    return stringProduct(input)
+              
+def getLetters(length):
+    result = ''
+    i = 0
+    while i<length:
+        result+=chr(((ord('A') - ord('A') + i)%26) + ord('A'))
+        i+=1
+    return result
+
+def boardContainsSelection(board, selection):
+    for card in selection:
+        if card not in board:
+            return False
+    return True
+    
+def containsDuplicates(board, selection):
+    checked = []
+    for card in selection:
+        if card in checked:
+            return True
+        checked.append(card)
+    return False
+
+def checkSelectionIsSet(board, selection, cardsPerSet):
+    if board==[]:
+        return 'Empty board!'
+    elif len(selection)!=cardsPerSet:
+        return 'Wrong number of cards!'
+    elif boardContainsSelection(board, selection)==False:
+        return 'Some of those cards are not on the board!'
+    elif boardContainsSelection(board, selection) and containsDuplicates(board, selection):
+        return 'Some of those cards are duplicates!'
+    elif isSet(selection)==False:
+        return 'Those cards do not form a set!'
+    return True
+
+def findFirstSet(board, cardsPerSet):
+    if len(board)==None:
+        return False
+    comboList = combinations(board, cardsPerSet)
+    for i in range(len(comboList)):
+        if isSet(comboList[i]):
+            return comboList[i]
+    return None
+
+def dealUntilSetExists(deck, cardsPerSet):
+    board = []
+    while True:
+        for i in range(len(deck)):
+            board.append(deck[i])
+            if findFirstSet(board, cardsPerSet):
+                return sorted(findFirstSet(board, cardsPerSet))
+
+def getRandomBoardWithSet(dims, targetBoardSize):
+    board = []
+    deck = makeSuperSetDeck(dims)
+    random.shuffle(deck)
+    cardsPerSet = min(dims)
+    foundSet = dealUntilSetExists(deck, cardsPerSet)
+    board+=foundSet
+    for i in range(len(deck)):
+        if deck[i] not in board and len(board)<targetBoardSize:
+            board+=[deck[i]]
+    board = sorted(board)
+    return (board, foundSet)
+
+####################################################
+# main function
+####################################################
+
+def main():
+    runAppWithScreens(initialScreen='welcomeScreen')
+
+main()
